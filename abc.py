@@ -7,8 +7,11 @@ music_arr = [
         'text': '四季'
     },
     {
-        'url': 'https://music.163.com/song/media/outer/url?id=287744.mp3',
-        'text': '富士山下'
+        'url': 'https://music.163.com/song/media/outer/url?id=1303464858.mp3',
+        'text': '于是'
+    },{
+        'url': 'https://music.163.com/song/media/outer/url?id=1360512113.mp3',
+        'text': '记得'
     },
     
 ]
@@ -30,3 +33,4 @@ with c1:
     st.button("上一首", use_container_width=True)
 with c2:
     st.button("下一首", use_container_width=True, on_click=nextImg)
+
