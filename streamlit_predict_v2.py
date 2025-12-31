@@ -1,103 +1,96 @@
-# 第9章/streamlit_predict_v2.py
+# 第8章/streamlit_predict_v2.py
 import streamlit as st
 import pickle
 import pandas as pd
 
-# 先设置页面配置（必须在所有组件之前）
+# 设置页面的标题、图标和布局
 st.set_page_config(
-    page_title="医疗费用预测",
-    page_icon="💊",
+    page_title="企鹅分类器",  # 页面标题
+    page_icon=":penguin:",   # 页面图标
+    layout='wide',
 )
 
-def introduce_page():
-    """当选择简介页面时，将呈现该函数的内容"""
-    st.write("#欢迎使用！")
-    st.sidebar.success("单击 ⇨ 预测医疗费用")
-    st.markdown(
-        """
-        ##医疗费用预测应用💊
-        这个应用利用机器学习模型来预测医疗费用，为保险公司的保险定价提供参考。
+# 使用侧边栏实现页面间显示效果
+with st.sidebar:
+    st.image('rigth_logo.png', width=100)
+    st.title('详选择页面')
+    page = st.selectbox("请选择页面", ["简介页面", "预测分类页面"], label_visibility='collapsed')
 
-        ##背景介绍
-        - 开发目标：帮助保险公司合理定价保险产品，控制风险。
-        - 模型算法：利用随机森林回归算法训练医疗费用预测模型。
+if page == "简介页面":
+    st.title("企鹅分类器:penguin:")
+    st.header('数据集介绍')
+    st.markdown("""**帕尔默群岛企鹅数据集是用于数据探索和数据可视化的一个出色的数据集。
+也可以作为机器学习入门练习。
+这数据集是由Gorman等收集，并发布在一个名为palmerpenguins的R语言包。
+对数据集的企鹅类别进行分类预测。
+这数据集记录了344行观测数据，包含3个不同物种的企鹅：阿德利企鹅、巴布亚企
+鹅和帽带企鹅的各种信息。""")
+    st.header('三种企鹅的卡通图像')
+    st.image('penguins.png')
 
-        ##使用指南
-        - 输入准确完整的被保险人信息，可以得到更准确的费用预测。
-        - 预测结果可以作为保险定价的重要参考，但需审慎决策。
-        - 有任何问题欢迎联系我们的技术支持。
+elif page == "预测分类页面":
+    st.header('预测企鹅分类')
+    st.markdown("""3个Web应用程序上输入企鹅的特征数据集构建的模型，只需输入6个信息，
+就可以预测企鹅的物种，使用下面的表单开始预测吧！""")
+# 读取页面显示 3:1:2 的列布局
+col_form, col, col_logo = st.columns([3, 1, 2])
+with col_form:
 
-        技术支持:email:: support@example.com
-        """
-    )
+    # 使用表单和表单提交按钮
+    with st.form('user_inputs'):
+        island = st.selectbox('企鹅栖息地的岛屿', options=['托尔格岛', '比斯科岛'])
+        sex = st.selectbox('性别', options=['雄性', '雌性'])
+        
+        bill_length = st.number_input('喙的长度（毫米）', min_value=0.0)
+        bill_depth = st.number_input('喙的深度（毫米）', min_value=0.0)
+        flipper_length = st.number_input('翅膀的长度（毫米）', min_value=0.0)
+        body_mass = st.number_input('身体质量（克）', min_value=0.0)
+        submitted = st.form_submit_button('预测分类')
 
-def predict_page():
-    """当选择预测费用页面时，将呈现该函数的内容"""
-    st.markdown(
-        """
-        ##使用说明
-        这个应用利用机器学习模型来预测医疗费用，为保险公司的保险定价提供参考。
-        - **输入信息**：在下面输入被保险人的个人信息、疾病信息等。
-        - **费用预测**：应用会预测被保险人的未来医疗费用支出。
-        """
-    )
+    # 初始化表单预处理中与岛屿相关的变量
+    island_biscoe, island_dream, island_torgerson = 0, 0, 0
+    # 根据用户输入的岛屿数据更改对应的值
+    if island == '比斯科岛':
+        island_biscoe = 1
+    elif island == '德里姆岛':
+        island_dream = 1
+    elif island == '托尔格岛':
+        island_torgerson = 1
 
-    # 关键修正：将表单移入predict_page函数内部，仅在预测页面渲染
-    with st.form('user_inputs'):  # 唯一key，仅在此处渲染
-        age = st.number_input('年龄', min_value=0)
-        sex = st.radio('性别', options=['男性', '女性'])
-        bmi = st.number_input('BMI', min_value=0.0)
-        children = st.number_input("子女数量：", step=1, min_value=0)
-        smoke = st.radio("是否吸烟", ("是", "否"))
-        region = st.selectbox('区域', ('东南部', '西南部', '东北部', '西北部'))
-        submitted = st.form_submit_button('预测费用')
+    # 初始化表单预处理中与性别相关的变量
+    sex_female, sex_male = 0, 0
+    # 根据用户输入的性别数据更改对应的值
+    if sex == '雌性':
+        sex_female = 1
+    elif sex == '雄性':
+        sex_male = 1
 
-    # 将提交判断也移入函数内部，仅在预测页面执行数据处理和预测
+    format_data = [bill_length, bill_depth, flipper_length, body_mass,
+                   island_dream, island_torgerson, island_biscoe, sex_male,
+                   sex_female]
+
+    # 使用pickle的load方法从磁盘读取文件反序列化加载一个之前保存的随机森林模型对象
+    with open('rfc_model.pkl', 'rb') as f:
+        rfc_model = pickle.load(f)
+
+    # 使用pickle的load方法从磁盘读取文件反序列化加载一个之前保存的映射对象
+    with open('output_uniques.pkl', 'rb') as f:
+        output_uniques_map = pickle.load(f)
+
     if submitted:
-        format_data = [age, sex, bmi, children, smoke, region]
+        format_data_df = pd.DataFrame(data=[format_data], columns=rfc_model.feature_names_in_)
+        # 使用训练好的模型对输入的format_data进行预测，返回预测结果的列表代码
+        predict_result_code = rfc_model.predict(format_data_df)
+        # 将数字代码对应其具体的类别名称
+        predict_result_species = output_uniques_map[predict_result_code[0]]
 
-        # 初始化数据预处理格式中与变量相关的变量
-        sex_female, sex_male = 0, 0
-        if sex == '女性':
-            sex_female = 1
-        elif sex == '男性':
-            sex_male = 1
+        st.write(f'根据输入的数据，预测该企鹅的物种名称是：**{predict_result_species}**')
 
-        smoke_yes, smoke_no = 0, 0
-        if smoke == '是':
-            smoke_yes = 1
-        elif smoke == '否':
-            smoke_no = 1
+with col_logo:
+    if not submitted:
+        st.image('rigth_logo.png', width=300)
+    else:
+        st.image(f'{predict_result_species}.png', width=300)
 
-        region_northeast, region_southeast, region_northwest, region_southwest = 0, 0, 0, 0
-        if region == '东北部':
-            region_northeast = 1
-        elif region == '东南部':
-            region_southeast = 1
-        elif region == '西北部':
-            region_northwest = 1
-        elif region == '西南部':
-            region_southwest = 1
-
-        format_data = [age, bmi, children, sex_female, sex_male,
-                       smoke_no, smoke_yes,
-                       region_northeast, region_southeast, region_northwest,
-                       region_southwest]
-
-        # 加载模型并预测
-        with open('rfr_model.pkl', 'rb') as f:
-            rfr_model = pickle.load(f)
-
-        format_data_df = pd.DataFrame(data=[format_data], columns=rfr_model.feature_names_in_)
-        predict_result = rfr_model.predict(format_data_df)[0]
-        st.write('根据您输入的数据，预测该客户的医疗费用是：', round(predict_result, 2))
-    st.write("技术支持：email::support@example.com")
-
-# 侧边栏导航（全局作用域，先于页面渲染）
-nav = st.sidebar.radio("导航", ["简介", "预测医疗费用"])
-
-# 根据导航选择展示对应页面
-if nav == "简介":
-    introduce_page()
-else:
-    predict_page()
+# 读者可结合代码中的注释进行理解，使用streamlit run streamlit_predict_v2.py命令运行
+# 整个Web应用，简介页面的显示效果如图8-10所示。
